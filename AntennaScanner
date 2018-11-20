@@ -1,0 +1,117 @@
+// Based on code by Run a A4998 Stepstick from an Arduino UNO.
+// Paul Hurley Aug 2015
+//
+// this will rotate the turntable 90 on power up and then step back slowly over a 3 minute period.
+
+int x; 
+#define BAUD (9600)
+
+
+void setup() 
+{
+  Serial.begin(BAUD);
+  pinMode(6,OUTPUT); // Enable
+  pinMode(5,OUTPUT); // Step
+  pinMode(4,OUTPUT); // Dir
+  digitalWrite(6,LOW); // Set Enable low
+
+
+  pinMode(MICROSW_PIN,INPUT);
+  pinMode(PIR_PIN,INPUT);
+   
+  pinMode(STEP_PIN,OUTPUT); 
+  pinMode(DIR_PIN,OUTPUT);
+  pinMode(6,OUTPUT); // Enable op
+  pinMode(5,OUTPUT); // Step op
+  pinMode(4,OUTPUT); // Direction op
+
+  SetToZero();
+  
+}
+
+void loop() 
+{
+  digitalWrite(6,LOW); // Set Enable low
+  digitalWrite(4,HIGH); // Set Dir high
+  Serial.println("Loop 200 steps (1 rev)");
+
+  //200 steps = 90 degrees due to pulley ratio of 4:1
+  
+  //rewind 90 degrees fast
+  digitalWrite(4,LOW);
+  for(x = 200; x >0; x--) // Loop 200 times
+  {
+    digitalWrite(5,HIGH); // Output high
+    delay(5); // Wait
+    digitalWrite(5,LOW); // Output low
+    delay(5); // Wait
+  }
+
+  digitalWrite(4,HIGH);
+  for(x = 0; x < 400; x++) // Loop 400 = 180 degrees slowly
+  {
+    digitalWrite(5,HIGH); // Output high
+    delay(10); // Wait
+    digitalWrite(5,LOW); // Output low
+    delay(100); // Wait
+    double value = (x / 200 ) *180;
+    printDouble(value,100);
+  }
+
+  
+  Serial.println("Pause");
+  delay(1000); // pause one second
+
+  //rewind 90 degrees fast to center
+  digitalWrite(4,LOW);
+  for(x = 200; x >0; x--) // Loop 200 times
+  {
+    digitalWrite(5,HIGH); // Output high
+    delay(5); // Wait
+    digitalWrite(5,LOW); // Output low
+    delay(5); // Wait
+  }  
+
+
+  
+}
+
+//from https://forum.arduino.cc/index.php?topic=44216.0
+void printDouble( double val, unsigned int precision){
+// prints val with number of decimal places determine by precision
+// NOTE: precision is 1 followed by the number of zeros for the desired number of decimial places
+// example: printDouble( 3.1415, 100); // prints 3.14 (two decimal places)
+
+   Serial.print (int(val));  //prints the int part
+   Serial.print("."); // print the decimal point
+   unsigned int frac;
+   if(val >= 0)
+       frac = (val - int(val)) * precision;
+   else
+       frac = (int(val)- val ) * precision;
+   Serial.println(frac,DEC) ;
+} 
+
+
+void SetToZero(void){
+  digitalWrite(DIR_PIN,HIGH);
+  while (digitalRead(MICROSW_PIN)==HIGH){
+    //waits for stepper to reach zero and trigger the switch
+    digitalWrite(STEP_PIN,HIGH); 
+    delay(50); 
+    digitalWrite(STEP_PIN,LOW); 
+    delay(50);  
+  }
+
+  digitalWrite(DIR_PIN,LOW);
+  while (digitalRead(MICROSW_PIN)==LOW){
+    //waits for stepper to back off switch
+    digitalWrite(STEP_PIN,HIGH); 
+    delay(50); 
+    digitalWrite(STEP_PIN,LOW); 
+    delay(50);  
+  }
+  return;
+}
+
+

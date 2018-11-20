@@ -1,0 +1,290 @@
+#include <Time.h>
+#include <TimeLib.h>
+
+/*
+
+  This example  prints the WiFi 101 shield or MKR1000 MAC address, and
+  scans for available WiFi networks using the WiFi 101 shield or MKR1000 board.
+  Every ten seconds, it scans again. It doesn't actually
+  connect to any network, so no encryption scheme is specified.
+  BSSID and WiFi channel are printed
+
+  This example is based on ScanNetworks
+
+  created 1 Mar 2017
+  by Arturo Guadalupi
+*/
+
+//Modified 18th November 2018, by Rod for Molex Antenna Testing
+
+
+#include <SPI.h>
+#include <WiFiNINA.h>
+#include <Keyboard.h>
+
+
+
+
+void setup() {
+  //Initialize serial and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial.println("MOLEX Roadtest for Element14\n");
+
+  
+  Keyboard.begin();
+  Serial.println("Set up\n");
+  
+
+
+  // check for the WiFi module:
+  if (WiFi.status() == WL_NO_MODULE) {
+    Serial.println("Communication with WiFi module failed!");
+    // don't continue
+    while (true);
+  }
+
+  String fv = WiFi.firmwareVersion();
+  if (fv < "1.0.0") {
+    Serial.println("Please upgrade the firmware");
+  }
+
+  // Print WiFi MAC address:
+  printMacAddress();
+
+  time_t t = now(); 
+
+  // scan for existing networks:
+  //Serial.println();
+  //Serial.println("Scanning available networks...");
+  //listNetworks();
+}
+
+void loop() {
+  int finished=0;
+  char *mySSID;
+  char *newSSID;
+  int thisNet=0;
+  int retStr;
+  int numSsid;
+  
+  //PrintTime();
+  
+  delay(2000);
+  
+  // scan for existing networks:
+  Serial.println("Scanning available networks...");
+  listNetworks();
+  Serial.println("Press x to rescan or number for network to loiter on.\n");
+  mySSID = (char *)malloc (30);
+  newSSID = (char *)malloc (30);
+    
+  while(1){ //final working loop
+    if (Serial.available() > 0) {
+      
+      char c = Serial.read();
+      Serial.flush();
+      if (c=='x') {
+        listNetworks();
+        thisNet=100;
+      }
+      if (c=='1') thisNet=0;
+      if (c=='2') thisNet=1;
+      if (c=='3') thisNet=2;
+      if (c=='4') thisNet=3;  
+      if (c=='5') thisNet=4;
+      if (c=='6') thisNet=5; 
+
+      if (thisNet<100){
+        Serial.println(WiFi.SSID(thisNet));
+        strcpy(mySSID, WiFi.SSID(thisNet));
+        finished=0;
+        while (finished==0){
+          
+          PrintTime2();
+
+
+  
+  
+          Serial.print("Signal on ");
+          Serial.print(WiFi.SSID(thisNet));
+          Serial.print(" is; ");
+          Serial.print(WiFi.RSSI(thisNet));
+          Serial.print(" ;dBm\n");
+          Serial.flush();
+
+
+
+
+          
+          c = Serial.read();
+          Serial.flush();
+
+          if (c=='q') {
+            finished=1;
+            Serial.println("Press x to rescan or number for network to loiter on.\n");
+            Serial.flush();
+            thisNet=100;
+          }
+
+          //rescan as they change !
+          numSsid = WiFi.scanNetworks();
+          for (int newNet = 0; newNet < numSsid; newNet++) {
+            strcpy(newSSID,WiFi.SSID(newNet));
+            retStr = strcmp(mySSID,newSSID);
+            if (retStr==0){
+              thisNet=newNet;   
+            }
+          }
+                   
+        }
+
+        
+      }
+
+
+    }
+  }
+}
+
+void printMacAddress() {
+  // the MAC address of your WiFi shield
+  byte mac[6];
+
+  // print your MAC address:
+  WiFi.macAddress(mac);
+  Serial.print("MAC: ");
+  print2Digits(mac[5]);
+  Serial.print(":");
+  print2Digits(mac[4]);
+  Serial.print(":");
+  print2Digits(mac[3]);
+  Serial.print(":");
+  print2Digits(mac[2]);
+  Serial.print(":");
+  print2Digits(mac[1]);
+  Serial.print(":");
+  print2Digits(mac[0]);
+}
+
+void listNetworks() {
+  // scan for nearby networks:
+  Serial.println("** Scan Networks **");
+  int numSsid = WiFi.scanNetworks();
+  if (numSsid == -1)
+  {
+    Serial.println("Couldn't get a WiFi connection");
+    while (true);
+  }
+
+  // print the list of networks seen:
+  Serial.print("number of available networks: ");
+  Serial.println(numSsid);
+
+  // print the network number and name for each network found:
+  for (int thisNet = 0; thisNet < numSsid; thisNet++) {
+    Serial.print(thisNet + 1);
+    Serial.print(") ");
+    Serial.print("Signal: ");
+    Serial.print(WiFi.RSSI(thisNet));
+    Serial.print(" dBm");
+    Serial.print("\tChannel: ");
+    Serial.print(WiFi.channel(thisNet));
+    byte bssid[6];
+    Serial.print("\t\tBSSID: ");
+    printBSSID(WiFi.BSSID(thisNet, bssid));
+    Serial.print("\tEncryption: ");
+    printEncryptionType(WiFi.encryptionType(thisNet));
+    Serial.print("\t\tSSID: ");
+    Serial.println(WiFi.SSID(thisNet));
+    Serial.flush();
+  }
+  Serial.println();
+}
+
+void printBSSID(byte bssid[]) {
+  print2Digits(bssid[5]);
+  Serial.print(":");
+  print2Digits(bssid[4]);
+  Serial.print(":");
+  print2Digits(bssid[3]);
+  Serial.print(":");
+  print2Digits(bssid[2]);
+  Serial.print(":");
+  print2Digits(bssid[1]);
+  Serial.print(":");
+  print2Digits(bssid[0]);
+}
+
+void printEncryptionType(int thisType) {
+  // read the encryption type and print out the name:
+  switch (thisType) {
+    case ENC_TYPE_WEP:
+      Serial.print("WEP");
+      break;
+    case ENC_TYPE_TKIP:
+      Serial.print("WPA");
+      break;
+    case ENC_TYPE_CCMP:
+      Serial.print("WPA2");
+      break;
+    case ENC_TYPE_NONE:
+      Serial.print("None");
+      break;
+    case ENC_TYPE_AUTO:
+      Serial.print("Auto");
+      break;
+    case ENC_TYPE_UNKNOWN:
+    default:
+      Serial.print("Unknown");
+      break;
+  }
+}
+
+
+
+
+void print2Digits(byte thisByte) {
+  if (thisByte < 0xF) {
+    Serial.print("0");
+  }
+  Serial.print(thisByte, HEX);
+}
+
+
+void PrintTime(void){
+  //from https://forum.arduino.cc/index.php?topic=440857.0
+  
+  unsigned long runMillis= millis();
+  unsigned long allSeconds=millis()/1000;
+  int runHours= allSeconds/3600;
+  int secsRemaining=allSeconds%3600;
+  int runMinutes=secsRemaining/60;
+  int runSeconds=secsRemaining%60;
+  
+  char buf[21];
+  sprintf(buf, "Runtime;%02d;%02d;%02d;",runHours,runMinutes,runSeconds);
+  Serial.print(buf);
+  Serial.print(";\t");
+  Serial.flush();
+
+}
+
+void PrintTime2(void){
+  
+  int Seconds;
+  int Minutes;
+  int Hours;
+  char buf[21];
+  
+  Seconds=second();
+  Minutes=minute();
+  Hours=hour();
+  sprintf(buf, "%02d:%02d:%02d:",Hours,Minutes,Seconds);
+  Serial.print(buf);
+  Serial.print(";\t");
+  Serial.flush();
+  
+}
